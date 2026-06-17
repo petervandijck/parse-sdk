@@ -1,0 +1,21 @@
+<?php
+
+namespace App\Listeners;
+
+use ParseForArtisans\Events\ParseCompleted;
+
+class HandleParsedDocument
+{
+    /**
+     * Handle the event.
+     */
+    public function handle(ParseCompleted $event): void
+    {
+        $parse = $event->request;          // the ParseRequest, now 'completed'
+        $markdown = $parse->markdown();    // the parsed Markdown
+        $document = $parse->parsable;      // the model you passed to ->for() (null if none)
+
+        // Your logic: store it, index it, send it to an LLM, notify the user…
+        // $parse->meta and $parse->page_count are here too.
+    }
+}

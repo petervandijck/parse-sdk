@@ -140,9 +140,10 @@ bind the singletons (the HTTP client, the `Parse` manager) and register the faca
 - **Auto-discovery:** declare the service provider (and the `Parse` facade alias) under
   `extra.laravel.providers` / `extra.laravel.aliases` in `composer.json` so it registers with no
   manual step on install.
-- **Versions:** target **Laravel 12 and 13** and **PHP 8.4** (matches the SaaS app). Express the
-  constraints as ranges in `composer.json` (`"illuminate/contracts": "^12.0|^13.0"`,
-  `"php": "^8.4"`).
+- **Versions:** target **Laravel 12 and 13** and **PHP `^8.3`** (the SaaS app is `php ^8.3` /
+  Laravel `^13.7`; `^8.3` keeps the SDK installable in a wider range of customer apps). Express
+  the constraints as ranges in `composer.json` (`"illuminate/contracts": "^12.0|^13.0"`,
+  `"php": "^8.3"`).
 - **Dependencies:** keep them minimal. This ships into customer apps, so every dependency is
   their problem too. Use the framework's HTTP client (`Illuminate\Support\Facades\Http`), not a
   bundled Guzzle wrapper.

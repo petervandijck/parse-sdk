@@ -1,0 +1,18 @@
+<?php
+
+namespace App\Listeners;
+
+use ParseForArtisans\Events\ParseFailed;
+
+class HandleFailedParse
+{
+    /**
+     * Handle the event.
+     */
+    public function handle(ParseFailed $event): void
+    {
+        report("Parse failed: {$event->request->error}");
+
+        // Your logic: flag the document, alert someone, queue a retry…
+    }
+}
