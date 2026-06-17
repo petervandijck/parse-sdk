@@ -146,6 +146,47 @@ Then run, in order:
 3. `php artisan parse:ping` and confirm the connected / valid-key / ready output. Try a wrong
    key to see the failure path.
 
+## Testing the full roundtrip locally (mock backend)
+
+The real SaaS parse endpoints are not live yet, but the package ships a local mock backend that
+implements the wire contract (`POST /api/v1/parse`, status, markdown, ping). It does not really
+parse; it returns a deterministic fake Markdown document after a short delay, so you can exercise
+the complete submit to result roundtrip end to end.
+
+In the consumer app, start the mock in one terminal:
+
+```bash
+php artisan parse:mock                 # listens on http://127.0.0.1:9321
+php artisan parse:mock --delay=5       # stay "pending" longer, to watch polling
+php artisan parse:mock --fail=pdf      # make .pdf submissions fail asynchronously
+```
+
+Point the SDK at it and use poll delivery, in `.env`:
+
+```env
+PARSE_BASE_URL=http://127.0.0.1:9321
+PARSE_API_KEY=pfa_anything             # the mock only checks the pfa_ prefix
+PARSE_DELIVERY=poll
+```
+
+The simplest proof needs no queue, because `->wait()` polls inline:
+
+```bash
+php artisan parse:file contracts/foo.pdf
+# submits, waits, prints the mock Markdown
+```
+
+To exercise the event path, run a queue worker (`composer run dev` or `php artisan queue:work`
+with a `database`/`redis` driver) and submit from tinker:
+
+```php
+Parse::file('contracts/foo.pdf')->parse();
+// the poll job fires ParseCompleted; your HandleParsedDocument listener runs
+```
+
+Try the error paths too: an unsupported extension (e.g. `.rtf`) throws `ParseException`
+synchronously, and `--fail=pdf` drives a `ParseFailed` event.
+
 ## Current status
 
 | Area | State | Manually testable now |
@@ -153,12 +194,14 @@ Then run, in order:
 | `parse:install` (publish config, migration, listeners) | built | yes |
 | `parse_requests` migration + `ParseRequest` model | built | yes |
 | `parse:ping` | built, live | yes (needs the SaaS `GET /api/v1/ping`) |
-| `Parse::file()->parse()` (managed multipart submit) | built, faked tests | once the SaaS `POST /api/v1/parse` ships |
-| `->status()`, `->markdown()`, `->wait()`, poll job, events | built, faked tests | once the SaaS status/markdown endpoints ship |
+| `Parse::file()->parse()` (managed multipart submit) | built | yes, against the mock backend |
+| `->status()`, `->markdown()`, `->wait()`, poll job, events | built | yes, against the mock backend |
+| Live parse against the real SaaS | pending | once the SaaS `POST /api/v1/parse` etc. ship |
 | BYO presigning, signed webhook route | not implemented | later |
 
-The parse flow is fully implemented and covered by Pest tests against `Http::fake()` /
-`Storage::fake()`; it is exercised end to end once the corresponding SaaS endpoints are live.
+The parse flow is fully implemented and covered by Pest tests (against `Http::fake()` /
+`Storage::fake()`, plus an integration test that drives the real code path against the mock
+backend). It runs against the live SaaS once the corresponding endpoints are deployed.
 
 ## License
 
