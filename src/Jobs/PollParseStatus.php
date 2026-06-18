@@ -21,6 +21,13 @@ class PollParseStatus implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    /**
+     * Run unlimited times so the job's own attempt cap (parse.poll.max_attempts)
+     * controls termination; a worker's --tries must not kill it before it fires
+     * the terminal ParseFailed event.
+     */
+    public int $tries = 0;
+
     public function __construct(public string $requestId) {}
 
     public function handle(ApiClient $client): void

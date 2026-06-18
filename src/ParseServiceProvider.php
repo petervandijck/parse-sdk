@@ -3,7 +3,6 @@
 namespace ParseForArtisans;
 
 use ParseForArtisans\Commands\FileCommand;
-use ParseForArtisans\Commands\MockCommand;
 use ParseForArtisans\Commands\PingCommand;
 use ParseForArtisans\Http\ApiClient;
 use Spatie\LaravelPackageTools\Commands\InstallCommand;
@@ -18,7 +17,7 @@ class ParseServiceProvider extends PackageServiceProvider
             ->name('parse')
             ->hasConfigFile('parse')
             ->hasMigration('create_parse_requests_table')
-            ->hasCommands([PingCommand::class, FileCommand::class, MockCommand::class])
+            ->hasCommands([PingCommand::class, FileCommand::class])
             ->hasInstallCommand(function (InstallCommand $command): void {
                 $command
                     ->publishConfigFile()

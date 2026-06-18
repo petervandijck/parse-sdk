@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use ParseForArtisans\Exceptions\ParseException;
 use ParseForArtisans\Facades\Parse;
@@ -46,6 +47,10 @@ beforeEach(function () {
 
     config()->set('parse.base_url', "http://127.0.0.1:{$this->port}");
     config()->set('parse.delivery', 'poll');
+
+    // The roundtrip is driven by ->wait() (direct polling); the dispatched poll
+    // job is irrelevant here, so fake the queue to avoid needing a jobs table.
+    Queue::fake();
 
     Storage::fake('local');
     Storage::disk('local')->put('contracts/foo.pdf', '%PDF-1.4 fake bytes');

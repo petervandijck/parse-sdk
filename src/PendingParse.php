@@ -3,6 +3,7 @@
 namespace ParseForArtisans;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use ParseForArtisans\Exceptions\ParseException;
@@ -35,6 +36,7 @@ class PendingParse
     public function __construct(
         protected ApiClient $client,
         protected string $path,
+        protected bool $isUrl = false,
     ) {}
 
     public function disk(?string $disk): self
@@ -111,37 +113,26 @@ class PendingParse
             );
         }
 
-        $sourceDisk = config('filesystems.default');
-
-        if (! Storage::disk($sourceDisk)->exists($this->path)) {
-            throw new ParseException(
-                type: 'invalid_request',
-                message: "File [{$this->path}] not found on disk [{$sourceDisk}].",
-            );
-        }
+        [$contents, $filename, $extension] = $this->resolveSource();
 
         $id = (string) Str::uuid();
         $delivery = Delivery::resolve();
 
         $payload = [
             'id' => $id,
-            'extension' => $this->extension(),
-            'filename' => $this->path,
+            'extension' => $extension,
+            'filename' => $this->isUrl ? $filename : $this->path,
             'delivery' => ['mode' => $delivery],
             'options' => $this->options(),
         ];
 
-        $result = $this->client->submitManaged(
-            $payload,
-            Storage::disk($sourceDisk)->get($this->path),
-            basename($this->path),
-        );
+        $result = $this->client->submitManaged($payload, $contents, $filename);
 
         $request = new ParseRequest([
             'id' => $result['id'] ?? $id,
             'disk' => null,
             'source_path' => $this->path,
-            'output_path' => $this->outputPath(),
+            'output_path' => $this->outputPath($filename),
             'status' => $result['status'] ?? 'pending',
             'meta' => $this->meta ?: null,
         ]);
@@ -159,18 +150,70 @@ class PendingParse
         return $request;
     }
 
-    protected function extension(): string
+    /**
+     * Resolve the source bytes, filename, and extension from either a disk path
+     * or a public URL (managed mode reads disk bytes from the default disk).
+     *
+     * @return array{0: string, 1: string, 2: string} [contents, filename, extension]
+     */
+    protected function resolveSource(): array
     {
-        return strtolower(pathinfo($this->path, PATHINFO_EXTENSION));
+        if ($this->isUrl) {
+            try {
+                $response = Http::get($this->path);
+            } catch (\Throwable $e) {
+                throw new ParseException(
+                    type: 'invalid_request',
+                    message: "Could not fetch URL [{$this->path}]: {$e->getMessage()}",
+                );
+            }
+
+            if ($response->failed()) {
+                throw new ParseException(
+                    type: 'invalid_request',
+                    message: "Could not fetch URL [{$this->path}] (HTTP {$response->status()}).",
+                );
+            }
+
+            $urlPath = (string) parse_url($this->path, PHP_URL_PATH);
+            $filename = basename($urlPath) ?: 'document';
+            $extension = strtolower(pathinfo($urlPath, PATHINFO_EXTENSION));
+
+            if ($extension === '') {
+                throw new ParseException(
+                    type: 'invalid_request',
+                    message: "Could not determine the file extension from URL [{$this->path}]. Include an extension in the URL.",
+                );
+            }
+
+            return [$response->body(), $filename, $extension];
+        }
+
+        $sourceDisk = config('filesystems.default');
+
+        if (! Storage::disk($sourceDisk)->exists($this->path)) {
+            throw new ParseException(
+                type: 'invalid_request',
+                message: "File [{$this->path}] not found on disk [{$sourceDisk}].",
+            );
+        }
+
+        return [
+            Storage::disk($sourceDisk)->get($this->path),
+            basename($this->path),
+            strtolower(pathinfo($this->path, PATHINFO_EXTENSION)),
+        ];
     }
 
-    protected function outputPath(): string
+    protected function outputPath(string $filename): string
     {
         if ($this->output !== null) {
             return $this->output;
         }
 
-        return rtrim((string) config('parse.output', 'parsed'), '/').'/'.$this->path.'.md';
+        $base = $this->isUrl ? $filename : $this->path;
+
+        return rtrim((string) config('parse.output', 'parsed'), '/').'/'.$base.'.md';
     }
 
     /**

@@ -3,7 +3,6 @@
 namespace ParseForArtisans;
 
 use Illuminate\Support\Collection;
-use ParseForArtisans\Exceptions\ParseException;
 use ParseForArtisans\Http\ApiClient;
 use ParseForArtisans\Models\ParseRequest;
 
@@ -42,14 +41,12 @@ class Parse
     }
 
     /**
-     * Parse a document already hosted at a public URL. Not implemented yet.
+     * Parse a document hosted at a public URL. The SDK downloads the bytes and
+     * submits them; the URL must carry a known file extension.
      */
     public function url(string $url): PendingParse
     {
-        throw new ParseException(
-            type: 'not_implemented',
-            message: 'Parse::url() is not implemented yet; store the file and parse the path.',
-        );
+        return new PendingParse($this->client, $url, isUrl: true);
     }
 
     /**
