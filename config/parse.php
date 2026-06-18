@@ -51,12 +51,12 @@ return [
     | How long, in seconds, the presigned GET/PUT URLs handed to the parser stay
     | valid in BYO mode. This must outlive the whole parse: the result is PUT
     | back only after parsing finishes, so a large document (up to ~1 GB) that
-    | runs for a while needs a TTL longer than its parse time. Defaults to two
-    | hours to match the backend's worker budget.
+    | runs for a while needs a TTL longer than its parse time. Defaults to six
+    | hours, comfortably above the backend worker budget plus any queue wait.
     |
     */
 
-    'presign_ttl' => (int) env('PARSE_PRESIGN_TTL', 7200),
+    'presign_ttl' => (int) env('PARSE_PRESIGN_TTL', 21600),
 
     /*
     |--------------------------------------------------------------------------
