@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
-use ParseForArtisans\Exceptions\ParseException;
+use Illuminate\Support\Facades\Storage;
 use ParseForArtisans\Exceptions\ParseFailedException;
 use ParseForArtisans\Exceptions\ParseTimeoutException;
 use ParseForArtisans\Http\ApiClient;
@@ -67,15 +67,12 @@ class ParseRequest extends Model
 
     /**
      * Fetch the parsed Markdown. Managed mode reads it from the SaaS API; BYO
-     * (a configured disk) is not implemented in this release.
+     * (a configured disk) reads it straight from the customer disk.
      */
     public function markdown(): string
     {
         if ($this->disk !== null) {
-            throw new ParseException(
-                type: 'not_implemented',
-                message: 'BYO disk reads are not implemented yet; use the managed bucket (unset parse.disk).',
-            );
+            return (string) Storage::disk($this->disk)->get($this->output_path);
         }
 
         return app(ApiClient::class)->markdown($this->id);

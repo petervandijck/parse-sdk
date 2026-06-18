@@ -56,6 +56,23 @@ class ApiClient
     }
 
     /**
+     * POST /api/v1/parse (BYO mode: JSON body, no bytes transit the SaaS).
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array{id: string, status: string}
+     */
+    public function submitByo(array $payload): array
+    {
+        $response = $this->request()->asJson()->post('/api/v1/parse', $payload);
+
+        if ($response->failed()) {
+            throw ParseException::fromResponse($response->json() ?? [], $response->status());
+        }
+
+        return $response->json();
+    }
+
+    /**
      * GET /api/v1/parse/{id}
      *
      * @return array<string, mixed>

@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Http;
-use ParseForArtisans\Exceptions\ParseException;
+use Illuminate\Support\Facades\Storage;
 use ParseForArtisans\Exceptions\ParseFailedException;
 use ParseForArtisans\Exceptions\ParseTimeoutException;
 use ParseForArtisans\Models\ParseRequest;
@@ -24,11 +24,18 @@ it('reads markdown from the managed API', function () {
     expect($row->markdown())->toBe('# Hello');
 });
 
-it('refuses markdown for a BYO disk row', function () {
-    $row = newRow(['disk' => 's3']);
+it('reads markdown from the customer disk for a BYO row', function () {
+    Storage::fake('s3');
+    Storage::disk('s3')->put('parsed/contracts/foo.pdf.md', '# From the bucket');
 
-    $row->markdown();
-})->throws(ParseException::class);
+    $row = newRow(['disk' => 's3', 'output_path' => 'parsed/contracts/foo.pdf.md']);
+
+    Http::fake();
+
+    expect($row->markdown())->toBe('# From the bucket');
+
+    Http::assertNothingSent();
+});
 
 it('wait() returns the row on completion', function () {
     $row = newRow();

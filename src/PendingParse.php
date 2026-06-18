@@ -100,19 +100,24 @@ class PendingParse
 
     /**
      * Submit the file and return the tracking handle. Throws ParseException on
-     * a synchronous submission error.
+     * a synchronous submission error. Managed mode (no disk) uploads the bytes;
+     * BYO mode (a configured disk) presigns the customer disk and submits JSON.
      */
     public function parse(): ParseRequest
     {
         $disk = $this->disk ?? config('parse.disk');
 
-        if ($disk !== null) {
-            throw new ParseException(
-                type: 'not_implemented',
-                message: 'BYO disk submit is not implemented yet; unset parse.disk to use the managed bucket.',
-            );
-        }
+        return $disk !== null
+            ? $this->parseByo($disk)
+            : $this->parseManaged();
+    }
 
+    /**
+     * Managed mode: read the bytes from the default disk (or fetch the URL) and
+     * upload them to the SaaS, which presigns its own bucket.
+     */
+    protected function parseManaged(): ParseRequest
+    {
         [$contents, $filename, $extension] = $this->resolveSource();
 
         $id = (string) Str::uuid();
@@ -122,17 +127,72 @@ class PendingParse
             'id' => $id,
             'extension' => $extension,
             'filename' => $this->isUrl ? $filename : $this->path,
-            'delivery' => ['mode' => $delivery],
+            'delivery' => $this->deliveryPayload($delivery),
             'options' => $this->options(),
         ];
 
         $result = $this->client->submitManaged($payload, $contents, $filename);
 
+        return $this->persist($result, $id, null, $this->outputPath($filename), $delivery);
+    }
+
+    /**
+     * BYO mode: presign GET + PUT against the customer disk and submit JSON so
+     * the file bytes never transit the SaaS.
+     */
+    protected function parseByo(string $disk): ParseRequest
+    {
+        if ($this->isUrl) {
+            throw new ParseException(
+                type: 'invalid_request',
+                message: 'A URL source cannot be parsed in BYO disk mode; unset parse.disk to use the managed bucket.',
+            );
+        }
+
+        $storage = Storage::disk($disk);
+
+        if (! $storage->exists($this->path)) {
+            throw new ParseException(
+                type: 'invalid_request',
+                message: "File [{$this->path}] not found on disk [{$disk}].",
+            );
+        }
+
+        $id = (string) Str::uuid();
+        $delivery = Delivery::resolve();
+        $outputPath = $this->outputPath($this->path);
+        $expiry = now()->addMinutes(30);
+
+        $payload = [
+            'id' => $id,
+            'extension' => strtolower(pathinfo($this->path, PATHINFO_EXTENSION)),
+            'filename' => $this->path,
+            'source' => [
+                'mode' => 'byo',
+                'file_url' => $storage->temporaryUrl($this->path, $expiry),
+                'upload_url' => $storage->temporaryUploadUrl($outputPath, $expiry)['url'],
+            ],
+            'delivery' => $this->deliveryPayload($delivery),
+            'options' => $this->options(),
+        ];
+
+        $result = $this->client->submitByo($payload);
+
+        return $this->persist($result, $id, $disk, $outputPath, $delivery);
+    }
+
+    /**
+     * Persist the local correlation row and kick off poll delivery if needed.
+     *
+     * @param  array{id?: string, status?: string}  $result
+     */
+    protected function persist(array $result, string $id, ?string $disk, string $outputPath, string $delivery): ParseRequest
+    {
         $request = new ParseRequest([
             'id' => $result['id'] ?? $id,
-            'disk' => null,
+            'disk' => $disk,
             'source_path' => $this->path,
-            'output_path' => $this->outputPath($filename),
+            'output_path' => $outputPath,
             'status' => $result['status'] ?? 'pending',
             'meta' => $this->meta ?: null,
         ]);
@@ -148,6 +208,23 @@ class PendingParse
         }
 
         return $request;
+    }
+
+    /**
+     * The delivery object sent to the SaaS. Under webhook delivery it carries
+     * the SDK's signed-callback route so the SaaS knows where to POST.
+     *
+     * @return array<string, mixed>
+     */
+    protected function deliveryPayload(string $delivery): array
+    {
+        $payload = ['mode' => $delivery];
+
+        if ($delivery === 'webhook') {
+            $payload['callback_url'] = route('parse.webhook');
+        }
+
+        return $payload;
     }
 
     /**

@@ -118,11 +118,21 @@ it('throws when the source file is missing', function () {
     Parse::file('contracts/missing.pdf')->parse();
 })->throws(ParseException::class);
 
-it('throws not_implemented for a configured BYO disk', function () {
-    Http::fake();
+it('adds the signed-callback route to the payload under webhook delivery', function () {
+    Bus::fake();
+    config()->set('parse.delivery', 'webhook');
+    Http::fake(['*/api/v1/parse' => Http::response(['id' => 'x', 'status' => 'pending'], 202)]);
 
-    Parse::disk('s3')->file('contracts/foo.pdf')->parse();
-})->throws(ParseException::class, 'BYO disk submit is not implemented yet; unset parse.disk to use the managed bucket.');
+    Parse::file('contracts/foo.pdf')->parse();
+
+    Http::assertSent(function ($request) {
+        $part = collect($request->data())->firstWhere('name', 'payload');
+        $payload = json_decode($part['contents'], true);
+
+        return $payload['delivery']['mode'] === 'webhook'
+            && $payload['delivery']['callback_url'] === route('parse.webhook');
+    });
+});
 
 dataset('submit_errors', [
     'invalid key' => [401, 'invalid_api_key'],

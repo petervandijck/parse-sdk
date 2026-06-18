@@ -17,6 +17,7 @@ class ParseServiceProvider extends PackageServiceProvider
             ->name('parse')
             ->hasConfigFile('parse')
             ->hasMigration('create_parse_requests_table')
+            ->hasRoute('webhook')
             ->hasCommands([PingCommand::class, FileCommand::class])
             ->hasInstallCommand(function (InstallCommand $command): void {
                 $command
