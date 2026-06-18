@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -69,6 +70,31 @@ it('reads BYO markdown from the customer disk without an API call', function () 
     expect($request->markdown())->toBe('# Parsed locally');
 
     Http::assertNothingSent();
+});
+
+it('presigns with the configured TTL so large parses can finish before the URLs expire', function () {
+    config()->set('parse.presign_ttl', 5400);
+    Carbon::setTestNow('2026-06-18 12:00:00');
+
+    $captured = [];
+    Storage::disk('s3')->buildTemporaryUrlsUsing(function ($path, $expiry) use (&$captured) {
+        $captured['get'] = $expiry;
+
+        return "https://bucket.test/{$path}?get";
+    });
+    Storage::disk('s3')->buildTemporaryUploadUrlsUsing(function ($path, $expiry) use (&$captured) {
+        $captured['put'] = $expiry;
+
+        return ['url' => "https://bucket.test/{$path}?put", 'headers' => []];
+    });
+    Http::fake(['*/api/v1/parse' => Http::response(['id' => 'x', 'status' => 'pending'], 202)]);
+
+    Parse::disk('s3')->file('contracts/foo.pdf')->parse();
+
+    expect($captured['get']->timestamp)->toBe(now()->addSeconds(5400)->timestamp)
+        ->and($captured['put']->timestamp)->toBe(now()->addSeconds(5400)->timestamp);
+
+    Carbon::setTestNow();
 });
 
 it('throws when the BYO source file is missing', function () {

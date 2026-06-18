@@ -161,7 +161,9 @@ class PendingParse
         $id = (string) Str::uuid();
         $delivery = Delivery::resolve();
         $outputPath = $this->outputPath($this->path);
-        $expiry = now()->addMinutes(30);
+        // The result is PUT back only after parsing finishes, so the TTL must
+        // outlive the whole parse (large files can run for many minutes).
+        $expiry = now()->addSeconds((int) config('parse.presign_ttl', 7200));
 
         $payload = [
             'id' => $id,
