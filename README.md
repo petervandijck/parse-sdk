@@ -7,11 +7,11 @@ Parse documents to Markdown from Laravel. Install the package, set an API key, a
 `Parse::file('contract.pdf')->parse()`; the result arrives in a `ParseCompleted` event. This is
 the client SDK for [parseforartisans.com](https://parseforartisans.com).
 
-> **Pre-release (`v0.1.0`).** Under active development. The full **managed** parse
-> round trip works against the live API at parseforartisans.com today: `parse:ping`,
-> `parse:file`, and `Parse::file()->parse()` to a `ParseCompleted` event (poll delivery locally).
-> BYO-bucket presigning and signed webhook delivery are not implemented yet. See
-> [Current status](#current-status).
+> **Ready to use.** The **managed** parse flow is live and verified end to end against
+> parseforartisans.com: install the package, set an API key, and `Parse::file()->parse()`
+> returns its result in a `ParseCompleted` event. `parse:ping`, `parse:file`, and the full
+> submit, status, and markdown path all work today. BYO-bucket presigning and signed webhook
+> delivery are on the roadmap; see [Current status](#current-status).
 
 ## Requirements
 
@@ -194,9 +194,9 @@ synchronously, and `MOCK_FAIL=pdf` drives a `ParseFailed` event.
 | Live managed parse against the real SaaS | done, verified | yes |
 | BYO presigning, signed webhook delivery | not implemented | M5 |
 
-The managed parse flow is implemented, covered by Pest tests (`Http::fake()` / `Storage::fake()`
-plus a mock-backend integration test), and verified end to end against the live SaaS. BYO storage
-and signed webhook delivery land in a later release.
+The managed parse flow is ready to use: implemented, covered by Pest tests (`Http::fake()` /
+`Storage::fake()` plus a mock-backend integration test), and verified end to end against the live
+SaaS. BYO storage and signed webhook delivery are on the roadmap.
 
 ## License
 
