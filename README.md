@@ -7,11 +7,10 @@ Parse documents to Markdown from Laravel. Install the package, set an API key, a
 `Parse::file('contract.pdf')->parse()`; the result arrives in a `ParseCompleted` event. This is
 the client SDK for [parseforartisans.com](https://parseforartisans.com).
 
-> **Ready to use.** The **managed** parse flow is live and verified end to end against
-> parseforartisans.com: install the package, set an API key, and `Parse::file()->parse()`
-> returns its result in a `ParseCompleted` event. `parse:ping`, `parse:file`, and the full
-> submit, status, and markdown path all work today. BYO-bucket presigning and signed webhook
-> delivery are on the roadmap; see [Current status](#current-status).
+> **Ready to use.** Install the package, set an API key, and `Parse::file()->parse()` returns its
+> result in a `ParseCompleted` event. Both storage modes (managed dev bucket and bring-your-own
+> bucket) and both delivery modes (signed webhook and poll) are implemented and verified end to
+> end against parseforartisans.com. See [Current status](#current-status).
 
 ## Requirements
 
@@ -191,12 +190,14 @@ synchronously, and `MOCK_FAIL=pdf` drives a `ParseFailed` event.
 | `Parse::file()->parse()` (managed multipart submit) | built, live | yes |
 | `Parse::url()` (download + submit) | built, live | yes |
 | `->status()`, `->markdown()`, `->wait()`, poll job, events | built, live | yes |
-| Live managed parse against the real SaaS | done, verified | yes |
-| BYO presigning, signed webhook delivery | not implemented | M5 |
+| BYO-bucket presigning (JSON submit, `->markdown()` reads the disk) | built, live | yes |
+| Signed webhook delivery (route, `X-Parse-Signature`, replay window) | built, live | yes |
+| Live managed and BYO parse against the real SaaS | done, verified | yes |
 
-The managed parse flow is ready to use: implemented, covered by Pest tests (`Http::fake()` /
+The full parse flow is ready to use: implemented, covered by Pest tests (`Http::fake()` /
 `Storage::fake()` plus a mock-backend integration test), and verified end to end against the live
-SaaS. BYO storage and signed webhook delivery are on the roadmap.
+SaaS. Both storage modes (managed and BYO) and both delivery modes (signed webhook and poll) are
+supported.
 
 ## License
 
