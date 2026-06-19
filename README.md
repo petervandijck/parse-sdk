@@ -1,10 +1,13 @@
 # Parse for Artisans (Laravel SDK)
 
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/parseforartisans/laravel.svg)](https://packagist.org/packages/parseforartisans/laravel)
+[![License](https://img.shields.io/packagist/l/parseforartisans/laravel.svg)](https://packagist.org/packages/parseforartisans/laravel)
+
 Parse documents to Markdown from Laravel. Install the package, set an API key, and call
 `Parse::file('contract.pdf')->parse()`; the result arrives in a `ParseCompleted` event. This is
 the client SDK for [parseforartisans.com](https://parseforartisans.com).
 
-> **Pre-release.** Under active development, not yet on Packagist. The full **managed** parse
+> **Pre-release (`v0.1.0`).** Under active development. The full **managed** parse
 > round trip works against the live API at parseforartisans.com today: `parse:ping`,
 > `parse:file`, and `Parse::file()->parse()` to a `ParseCompleted` event (poll delivery locally).
 > BYO-bucket presigning and signed webhook delivery are not implemented yet. See
@@ -114,8 +117,8 @@ This package uses Laravel's built-ins, so no bespoke fake is needed:
 
 ## Local manual test (against the staging or local SaaS)
 
-For testing the SDK from a separate Laravel app while it is not yet on Packagist, require it from
-a local path. In the consumer app's `composer.json`:
+To test local, unreleased changes to the SDK from a separate Laravel app, require it from a local
+path instead of Packagist. In the consumer app's `composer.json`:
 
 ```json
 "repositories": [
